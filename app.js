@@ -1,29 +1,36 @@
+// app.js
 const express = require('express');
-const app = express();
-const cors = require('cors');
+const cors    = require('cors');
 
+const app  = express();
 app.use(cors());
 app.use(express.json());
 
+// Always listen on the port Render gives you
 const PORT = process.env.PORT || 10000;
 
+/**
+ * Dummy in-memory balances.
+ * Replace with real database look-ups later.
+ */
+const balances = {
+  'arthurskinney@yahoo.com': 150,
+  'test@example.com': 0
+};
+
+/**
+ * GET /wallet?email=user@example.com
+ * Returns { balance: <number> }
+ * If the email is not found, balance is 0 (no 404).
+ */
 app.get('/wallet', (req, res) => {
   const email = req.query.email;
-  if (!email) return res.status(400).json({ error: 'Email is required' });
-
-  // Replace this with your real DB check
-  const dummyDB = {
-    'arthurskinney@yahoo.com': 150,
-    'test@example.com': 0
-  };
-
-  const balance = dummyDB[email];
-
-  if (balance === undefined) {
-    return res.json({ balance: 0 }); // Return 0 instead of 404
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
   }
 
-  res.json({ balance });
+  const balance = balances[email] ?? 0;
+  return res.json({ balance });
 });
 
 app.listen(PORT, () => {
