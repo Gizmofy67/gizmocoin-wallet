@@ -1,38 +1,43 @@
-// app.js
-const express = require('express');
-const cors    = require('cors');
+<div style="font-family:'Orbitron',sans-serif; color:#00E5FF; background:#000; padding:40px; max-width:700px; margin:auto;">
+  <h2 style="text-align:center;">🔐 GizmoCoin Wallet</h2>
+  <p><strong>Your GizmoCoin Balance:</strong> <span id="wallet-balance">Loading...</span></p>
 
-const app  = express();
-app.use(cors());
-app.use(express.json());
+  <form id="gizmocoin-form">
+    <label for="usd-amount">Enter amount in USD:</label><br>
+    <input type="number" id="usd-amount" min="1" placeholder="e.g. 50" required />
+    <button type="submit">Convert to GizmoCoin</button>
+  </form>
 
-// Always listen on the port Render gives you
-const PORT = process.env.PORT || 10000;
+  <p style="margin-top:20px;">Exchange rate: <strong>$25 = 1 GizmoCoin</strong></p>
+</div>
 
-/**
- * Dummy in-memory balances.
- * Replace with real database look-ups later.
- */
-const balances = {
-  'arthurskinney@yahoo.com': 150,
-  'test@example.com': 0
-};
+<script>
+  const apiBase = "https://gizmocoin-wallet.onrender.com"; // Your deployed wallet URL
 
-/**
- * GET /wallet?email=user@example.com
- * Returns { balance: <number> }
- * If the email is not found, balance is 0 (no 404).
- */
-app.get('/wallet', (req, res) => {
-  const email = req.query.email;
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
+  // Replace this with the logged-in customer email if you're pulling dynamically from Shopify
+  const customerEmail = Shopify?.customer?.email || "demo@example.com";
+
+  async function updateBalance() {
+    try {
+      const res = await fetch(`${apiBase}/wallet?email=${encodeURIComponent(customerEmail)}`);
+      const data = await res.json();
+      document.getElementById("wallet-balance").textContent = data.balance || 0;
+    } catch (err) {
+      document.getElementById("wallet-balance").textContent = "Unavailable";
+    }
   }
 
-  const balance = balances[email] ?? 0;
-  return res.json({ balance });
-});
+  document.getElementById("gizmocoin-form").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const usd = parseFloat(document.getElementById("usd-amount").value);
+    if (!usd || usd <= 0) return;
 
-app.listen(PORT, () => {
-  console.log(`GizmoCoin wallet server running on port ${PORT}`);
-});
+    const gizmoAmount = usd / 25;
+    alert(`You will receive ${gizmoAmount.toFixed(2)} GizmoCoin(s).`);
+
+    // Optional: You could also call a backend here to "process" the conversion
+    // This would require a POST request to your wallet server
+  });
+
+  updateBalance();
+</script>
