@@ -63,16 +63,13 @@ app.post('/convert', (req, res) => {
 });
 
 // ------------------------------------------------------------------
-
-app.listen(PORT, () => console.log(`🪙 GizmoCoin wallet server running on ${PORT}`));
-
-
-// ------------------------------------------------------------------
-// ⬇️  put the port FIRST, then call app.listen
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () =>
   console.log(`🪙 GizmoCoin wallet server running on ${PORT}`)
 );
+app.listen(PORT, () => console.log(`🪙 GizmoCoin wallet server running on ${PORT}`));
 
 
+// ------------------------------------------------------------------
+// ⬇️  put the port FIRST, then call app.listen
