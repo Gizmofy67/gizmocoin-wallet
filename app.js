@@ -1,19 +1,19 @@
 /* app.js – GizmoCoin Wallet + Discount API
-   Simple in-memory wallet; add DB later.
+   Simple in-memory wallet; swap for DB when ready.
 */
 
-const express     = require("express");
-const cors        = require("cors");
-const axios       = require("axios");
+const express = require("express");
+const cors    = require("cors");
+const axios   = require("axios");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* ───────────────── In-memory wallet ────────────────── */
-const wallet = {};        // { email: { balance:Number } }
+/* ───────────────── In-memory wallet ───────────────── */
+const wallet = {};            // { email: { balance: Number } }
 
-/* GET  /wallet?email=…  → { balance } */
+/* GET /wallet?email=…  → { balance }  (public) */
 app.get("/wallet", (req, res) => {
   const { email } = req.query;
   if (!email) return res.status(400).json({ error: "Missing email parameter" });
@@ -22,24 +22,35 @@ app.get("/wallet", (req, res) => {
   res.json({ balance: wallet[email].balance });
 });
 
-/* POST /wallet  { email, amount }  → credit/debit GZM */
+/* Pass-phrase required ONLY for adding credit */
+const WALLET_PASSPHRASE = "@Colts511";
+
+/* POST /wallet  { email, amount, passphrase }  → credit/debit GZM */
 app.post("/wallet", (req, res) => {
-  const { email, amount } = req.body;
-  if (!email || typeof amount !== "number")
+  const { email, amount, passphrase } = req.body;
+
+  if (passphrase !== WALLET_PASSPHRASE) {
+    return res.status(403).json({ error: "Invalid passphrase" });
+  }
+
+  if (!email || typeof amount !== "number") {
     return res.status(400).json({ error: "Missing or invalid data" });
+  }
 
   if (!wallet[email]) wallet[email] = { balance: 0 };
   wallet[email].balance += amount;
+
   res.json({ balance: wallet[email].balance });
 });
 
-/* POST /convert  { email, usd }  → convert USD to GZM and credit */
+/* POST /convert  { email, usd }  → convert USD to GZM and credit (no pass-phrase) */
 app.post("/convert", (req, res) => {
   const { email, usd } = req.body;
-  if (!email || typeof usd !== "number")
+  if (!email || typeof usd !== "number") {
     return res.status(400).json({ success: false, message: "Missing or invalid data" });
+  }
 
-  const GIZMO_PER_USD = 1 / 25;                    // $25 = 1 GZM
+  const GIZMO_PER_USD = 1 / 25;              // $25 = 1 GZM
   const gizmoAdded    = +(usd * GIZMO_PER_USD).toFixed(4);
 
   if (!wallet[email]) wallet[email] = { balance: 0 };
@@ -48,8 +59,8 @@ app.post("/convert", (req, res) => {
   res.json({ success: true, gizmo: gizmoAdded, balance: wallet[email].balance });
 });
 
-/* ───────────────── Create-discount route ──────────────────
-   Needs env vars: SHOPIFY_STORE, SHOPIFY_TOKEN
+/* ───────────────── Shopify discount helper ─────────────────
+   Requires env vars: SHOPIFY_STORE, SHOPIFY_TOKEN
    Body: { amount: 44.85 } → returns plain-text code (e.g. GZM-ABCD)
 */
 app.post("/create-discount", async (req, res) => {
@@ -57,8 +68,8 @@ app.post("/create-discount", async (req, res) => {
     const { amount } = req.body;
     if (!amount || amount <= 0) return res.status(400).send("Bad amount");
 
-    const STORE = process.env.SHOPIFY_STORE;      // e.g. 2auhys-yk.myshopify.com
-    const TOKEN = process.env.SHOPIFY_TOKEN;      // shpat_***
+    const STORE = process.env.SHOPIFY_STORE;   // e.g. 2auhys-yk.myshopify.com
+    const TOKEN = process.env.SHOPIFY_TOKEN;   // shpat_***
     if (!STORE || !TOKEN) return res.status(500).send("Shopify env vars missing");
 
     const ADMIN = `https://${TOKEN}@${STORE}/admin/api/2024-04`;
@@ -74,7 +85,7 @@ app.post("/create-discount", async (req, res) => {
         target_selection: "all",
         allocation_method: "across",
         value_type: "fixed_amount",
-        value: -amount,                      // negative for discount
+        value: -amount,                      // negative = discount
         customer_selection: "all",
         starts_at: now,
         ends_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 min
@@ -83,19 +94,21 @@ app.post("/create-discount", async (req, res) => {
     });
 
     /* 2️⃣ Attach one-time code */
-    await axios.post(`${ADMIN}/price_rules/${pr.data.price_rule.id}/discount_codes.json`, {
-      discount_code: { code }
-    });
+    await axios.post(
+      `${ADMIN}/price_rules/${pr.data.price_rule.id}/discount_codes.json`,
+      { discount_code: { code } }
+    );
 
-    res.send(code);                            // plain text
+    res.send(code);                            // plain text response
   } catch (err) {
     console.error(err.response?.data || err);
     res.status(500).send("ERR");
   }
 });
 
-/* ───────────────── Start server ────────────────── */
+/* ───────────────── Start server ───────────────── */
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🪙 GizmoCoin wallet server running on port ${PORT}`);
 });
+
