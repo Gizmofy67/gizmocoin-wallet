@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-console.log('🔍 DATABASE_URL:', process.env.DATABASE_URL);  // Debug output
+console.log('🔍 DATABASE_URL:', process.env.DATABASE_URL);  // Shows what .env is loading
 
 import pg from 'pg';
 const { Pool } = pg;
@@ -31,5 +31,8 @@ const createOrdersTable = async () => {
     await pool.end();
   }
 };
+
+createOrdersTable();
+
 
 createOrdersTable();
