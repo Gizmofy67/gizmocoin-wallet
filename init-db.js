@@ -1,10 +1,7 @@
+// init-db.js
 import dotenv from 'dotenv';
 dotenv.config();
 
-import pg from 'pg';
-const { Pool } = pg;
-
-// init-db.js
 import pg from 'pg';
 const { Pool } = pg;
 
