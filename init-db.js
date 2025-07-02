@@ -1,15 +1,16 @@
-// init-db.js
 import dotenv from 'dotenv';
 dotenv.config();
 
-console.log('🔍 DATABASE_URL:', process.env.DATABASE_URL);   // <-- you should see the full Render URL
+console.log('🔍 DATABASE_URL:', process.env.DATABASE_URL);  // Debug output
 
 import pg from 'pg';
 const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 const createOrdersTable = async () => {
@@ -31,5 +32,4 @@ const createOrdersTable = async () => {
   }
 };
 
-createOrdersTable();
 createOrdersTable();
