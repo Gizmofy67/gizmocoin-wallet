@@ -1,4 +1,4 @@
-/* app.js – GizmoCoin Wallet + Discount API  (rev 2025-07-03) */
+/* app.js – GizmoCoin Wallet + Discount API  (rev 2025-07-03 fixed) */
 const express = require("express");
 const cors    = require("cors");
 const axios   = require("axios");
@@ -8,13 +8,22 @@ app.use(cors());
 app.use(express.json());
 
 /*─────────────────────────────────────────────────────────────*/
-/*  In-memory wallet store (use a real DB in production!)      */
+/*  In-memory wallet store (swap for a real DB in production)  */
 const wallet = {};
 const WALLET_PASSPHRASE = "@Colts511";
 /*─────────────────────────────────────────────────────────────*/
 
 /* GET /wallet?email=…  →  { balance } */
 app.get("/wallet", (req, res) => {
+  const email = (req.query.email || "").trim();
+  if (!email) return res.status(400).json({ error: "Missing email parameter" });
+
+  if (!wallet[email]) wallet[email] = { balance: 0 };
+  res.json({ balance: wallet[email].balance });
+});
+
+/* Alias: GET /balance?email=… (same logic) */
+app.get("/balance", (req, res) => {
   const email = (req.query.email || "").trim();
   if (!email) return res.status(400).json({ error: "Missing email parameter" });
 
@@ -56,26 +65,14 @@ app.post("/checkout", (req, res) => {
   if (wallet[email].balance < total)
     return res.status(402).json({ error: "Insufficient balance" });
 
-  // Deduct GizmoCoin
-  wallet[email].balance -= total;
+  wallet[email].balance -= total;       // deduct GZM
 
-  // Simulate order confirmation
   res.json({
     message: "Checkout successful",
     remaining: wallet[email].balance,
     cart: req.body.cart || []
   });
 });
-
-/*─────────────────────────────────────────────────────────────*/
-/*  START SERVER                                              */
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`🪙 GizmoCoin wallet server running on port ${PORT}`);
-});
-/*─────────────────────────────────────────────────────────────*/
-
-
 
 /* POST /convert  { email, usd }  →  add GZM */
 app.post("/convert", (req, res) => {
@@ -93,24 +90,18 @@ app.post("/convert", (req, res) => {
   res.json({ success: true, gizmo: addGZM, balance: wallet[email].balance });
 });
 
-/*─────────────────────────────────────────────────────────────*/
-/*  POST /create-discount  { amount }  →  GZM-$$ discount code */
-/*─────────────────────────────────────────────────────────────*/
+/* POST /create-discount  { amount }  →  Shopify discount code */
 app.post("/create-discount", async (req, res) => {
-  console.log("🔥  /create-discount hit:", req.body);
+  console.log("🔥 /create-discount hit:", req.body);
 
   const amount = Number(req.body.amount);
-  if (!amount || amount <= 0) {
-    console.log("❌ Invalid amount:", amount);
+  if (!amount || amount <= 0)
     return res.status(400).send("Bad amount");
-  }
 
-  const STORE = process.env.SHOPIFY_STORE;      // e.g. mystore.myshopify.com
-  const TOKEN = process.env.SHOPIFY_TOKEN;      // Admin API access token
-  if (!STORE || !TOKEN) {
-    console.log("❌ Missing Shopify env vars:", { STORE, TOKEN: !!TOKEN });
+  const STORE = process.env.SHOPIFY_STORE;
+  const TOKEN = process.env.SHOPIFY_TOKEN;
+  if (!STORE || !TOKEN)
     return res.status(500).send("Shopify env vars missing");
-  }
 
   const API_VER = "2024-04";
   const ADMIN   = `https://${STORE}/admin/api/${API_VER}`;
@@ -130,7 +121,7 @@ app.post("/create-discount", async (req, res) => {
           target_selection:   "all",
           allocation_method:  "across",
           value_type:         "fixed_amount",
-          value:              `-${amount.toFixed(2)}`,  // Shopify expects string!
+          value:              `-${amount.toFixed(2)}`,
           customer_selection: "all",
           starts_at:          now.toISOString(),
           ends_at:            ends.toISOString(),
@@ -140,7 +131,7 @@ app.post("/create-discount", async (req, res) => {
       { headers: { "X-Shopify-Access-Token": TOKEN } }
     );
 
-    /* 2️⃣  Attach discount code to that rule */
+    /* 2️⃣  Attach discount code */
     await axios.post(
       `${ADMIN}/price_rules/${prRes.data.price_rule.id}/discount_codes.json`,
       { discount_code: { code } },
@@ -150,20 +141,23 @@ app.post("/create-discount", async (req, res) => {
     console.log("✅ Discount code created:", code);
     res.send(code);
   } catch (err) {
-    /* Full diagnostic logging */
-    console.error("🔥 ERROR in /create-discount");
-    console.error("Message :", err.message);
-    console.error("Status  :", err.response?.status);
-    console.error("Data    :", err.response?.data);
+    console.error("🔥 ERROR in /create-discount", {
+      message: err.message,
+      status : err.response?.status,
+      data   : err.response?.data
+    });
     res.status(500).send("ERR");
   }
 });
 
-/* Start server */
+/*─────────────────────────────────────────────────────────────*/
+/*  START SERVER (single call!)                               */
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🪙 GizmoCoin wallet server running on port ${PORT}`);
 });
+/*─────────────────────────────────────────────────────────────*/
+
 
 
 
