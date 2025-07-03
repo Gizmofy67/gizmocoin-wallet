@@ -1,3 +1,48 @@
+/* app.js – GizmoCoin Wallet + Discount API  (rev 2025-07-03) */
+const express = require("express");
+const cors    = require("cors");
+const axios   = require("axios");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+/*─────────────────────────────────────────────────────────────*/
+/*  In-memory wallet store (use a real DB in production!)      */
+const wallet = {};
+const WALLET_PASSPHRASE = "@Colts511";
+/*─────────────────────────────────────────────────────────────*/
+
+/* GET /wallet?email=…  →  { balance } */
+app.get("/wallet", (req, res) => {
+  const email = (req.query.email || "").trim();
+  if (!email) return res.status(400).json({ error: "Missing email parameter" });
+
+  if (!wallet[email]) wallet[email] = { balance: 0 };
+  res.json({ balance: wallet[email].balance });
+});
+
+/* POST /wallet  (credit/debit, passphrase required for ≥0.01) */
+app.post("/wallet", (req, res) => {
+  const email      = (req.body.email || "").trim();
+  const amount     = Number(req.body.amount);
+  const passphrase = (req.body.passphrase || "").trim();
+
+  if (!email || isNaN(amount))
+    return res.status(400).json({ error: "Missing or invalid email/amount" });
+
+  if (amount !== 0 && passphrase !== WALLET_PASSPHRASE)
+    return res.status(403).json({ error: "Invalid passphrase" });
+
+  if (amount < -1000 || amount > 1000)
+    return res.status(400).json({ error: "Amount out of range ±1000 GZM" });
+
+  if (!wallet[email]) wallet[email] = { balance: 0 };
+  wallet[email].balance += amount;
+
+  res.json({ balance: wallet[email].balance });
+});
+
 /* POST /checkout  (deduct GZM and simulate order) */
 app.post("/checkout", (req, res) => {
   const email = (req.body.email || "").trim();
@@ -21,6 +66,15 @@ app.post("/checkout", (req, res) => {
     cart: req.body.cart || []
   });
 });
+
+/*─────────────────────────────────────────────────────────────*/
+/*  START SERVER                                              */
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`🪙 GizmoCoin wallet server running on port ${PORT}`);
+});
+/*─────────────────────────────────────────────────────────────*/
+
 
 
 /* POST /convert  { email, usd }  →  add GZM */
