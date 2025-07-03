@@ -1,48 +1,27 @@
-/* app.js – GizmoCoin Wallet + Discount API  (rev 2025-06-30) */
+/* POST /checkout  (deduct GZM and simulate order) */
+app.post("/checkout", (req, res) => {
+  const email = (req.body.email || "").trim();
+  const total = Number(req.body.total);
 
-const express = require("express");
-const cors    = require("cors");
-const axios   = require("axios");
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-/*─────────────────────────────────────────────────────────────*/
-/*  In-memory wallet store (use a real DB in production!)      */
-const wallet = {};
-const WALLET_PASSPHRASE = "@Colts511";
-/*─────────────────────────────────────────────────────────────*/
-
-/* GET /wallet?email=…  →  { balance } */
-app.get("/wallet", (req, res) => {
-  const email = (req.query.email || "").trim();
-  if (!email) return res.status(400).json({ error: "Missing email parameter" });
+  if (!email || isNaN(total) || total <= 0)
+    return res.status(400).json({ error: "Invalid email or total amount" });
 
   if (!wallet[email]) wallet[email] = { balance: 0 };
-  res.json({ balance: wallet[email].balance });
+
+  if (wallet[email].balance < total)
+    return res.status(402).json({ error: "Insufficient balance" });
+
+  // Deduct GizmoCoin
+  wallet[email].balance -= total;
+
+  // Simulate order confirmation
+  res.json({
+    message: "Checkout successful",
+    remaining: wallet[email].balance,
+    cart: req.body.cart || []
+  });
 });
 
-/* POST /wallet  (credit/debit, passphrase required for ≥0.01) */
-app.post("/wallet", (req, res) => {
-  const email      = (req.body.email || "").trim();
-  const amount     = Number(req.body.amount);
-  const passphrase = (req.body.passphrase || "").trim();
-
-  if (!email || isNaN(amount))
-    return res.status(400).json({ error: "Missing or invalid email/amount" });
-
-  if (amount !== 0 && passphrase !== WALLET_PASSPHRASE)
-    return res.status(403).json({ error: "Invalid passphrase" });
-
-  if (amount < -1000 || amount > 1000)
-    return res.status(400).json({ error: "Amount out of range ±1000 GZM" });
-
-  if (!wallet[email]) wallet[email] = { balance: 0 };
-  wallet[email].balance += amount;
-
-  res.json({ balance: wallet[email].balance });
-});
 
 /* POST /convert  { email, usd }  →  add GZM */
 app.post("/convert", (req, res) => {
