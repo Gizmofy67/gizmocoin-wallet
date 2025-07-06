@@ -1,56 +1,37 @@
-/* app.js – GizmoCoin Wallet + Discount API  (rev 2025-07-03 fixed) */
-const express = require("express");
-const cors    = require("cors");
-const axios   = require("axios");
+import express from 'express';
+import cors from 'cors';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-/*─────────────────────────────────────────────────────────────*/
-/*  In-memory wallet store (swap for a real DB in production)  */
-const wallet = {};
-const WALLET_PASSPHRASE = "@Colts511";
-/*─────────────────────────────────────────────────────────────*/
-
-/* GET /wallet?email=…  →  { balance } */
-app.get("/wallet", (req, res) => {
-  const email = (req.query.email || "").trim();
-  if (!email) return res.status(400).json({ error: "Missing email parameter" });
-
-  if (!wallet[email]) wallet[email] = { balance: 0 };
-  res.json({ balance: wallet[email].balance });
+// 🔧 Health check
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
 });
 
-/* Alias: GET /balance?email=… (same logic) */
-app.get("/balance", (req, res) => {
-  const email = (req.query.email || "").trim();
-  if (!email) return res.status(400).json({ error: "Missing email parameter" });
-
-  if (!wallet[email]) wallet[email] = { balance: 0 };
-  res.json({ balance: wallet[email].balance });
+// 🔧 Dummy login
+app.post('/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  if (email && password) {
+    return res.json("dummy-token-123");
+  }
+  res.status(400).json({ error: "Missing credentials" });
 });
 
-/* POST /wallet  (credit/debit, passphrase required for ≥0.01) */
-app.post("/wallet", (req, res) => {
-  const email      = (req.body.email || "").trim();
-  const amount     = Number(req.body.amount);
-  const passphrase = (req.body.passphrase || "").trim();
-
-  if (!email || isNaN(amount))
-    return res.status(400).json({ error: "Missing or invalid email/amount" });
-
-  if (amount !== 0 && passphrase !== WALLET_PASSPHRASE)
-    return res.status(403).json({ error: "Invalid passphrase" });
-
-  if (amount < -1000 || amount > 1000)
-    return res.status(400).json({ error: "Amount out of range ±1000 GZM" });
-
-  if (!wallet[email]) wallet[email] = { balance: 0 };
-  wallet[email].balance += amount;
-
-  res.json({ balance: wallet[email].balance });
+// 🔧 Dummy wallet
+app.get('/wallet', (req, res) => {
+  res.json({ balance: 10 });
 });
+
+// 🔧 Dummy checkout
+app.post('/checkout', (req, res) => {
+  res.json({ id: Math.floor(Math.random() * 10000) });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`API running on port ${PORT}`));
+
 
 /* POST /checkout  (deduct GZM and simulate order) */
 app.post("/checkout", (req, res) => {
