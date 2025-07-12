@@ -12,7 +12,6 @@ dotenv.config();
 
 const { Pool } = pkg;
 
-/*───────────────────  ENV  ────────────────────*/
 const {
   PORT = 10000,
   DATABASE_URL,
@@ -23,11 +22,10 @@ const {
 } = process.env;
 
 if (!DATABASE_URL) {
-  console.error("❌ DATABASE_URL not set");
+  console.error("\u274C DATABASE_URL not set");
   process.exit(1);
 }
 
-/*───────────────────  DB  ────────────────────*/
 const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: DATABASE_URL.includes("amazonaws.com") ? { rejectUnauthorized: false } : false
@@ -40,12 +38,11 @@ await pool.query(`
   );
 `);
 
-/*───────────────────  APP INIT  ────────────────────*/
 const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: ["https://getgizmofy.store", /\.gizmofy\.store$/],
+    origin: ["https://getgizmofy.store", /.gizmofy\.store$/],
     credentials: true
   })
 );
@@ -54,7 +51,6 @@ app.use(rateLimit({ windowMs: 60_000, max: 100 }));
 
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-/*───────────────────  AUTH LAYER  ────────────────────*/
 const auth = (req, res, next) => {
   const token = (req.headers.authorization || "").replace("Bearer ", "");
   if (!token) return res.status(401).json({ error: "Missing auth token" });
@@ -66,7 +62,6 @@ const auth = (req, res, next) => {
   }
 };
 
-/*───────────────────  HELPERS  ────────────────────*/
 async function getBalance(email, client = pool) {
   const { rows } = await client.query("SELECT balance FROM wallets WHERE email=$1", [email]);
   return rows[0]?.balance ?? 0;
@@ -79,34 +74,46 @@ async function setBalance(email, balance, client = pool) {
   );
 }
 
-/*───────────────────  BASIC ROUTES  ────────────────────*/
 app.get("/", (_req, res) => res.send("GizmoCoin API live"));
 app.get("/health", (_req, res) => res.send("OK"));
 
-/*───────────────────  AUTH ENDPOINTS  ────────────────────*/
+/*───────────────────  WALLET  ────────────────────*/
+app.get(
+  "/wallet",
+  asyncHandler(async (req, res) => {
+    const email = req.query.email;
+    if (!email) return res.status(400).json({ error: "Missing email" });
+    const balance = await getBalance(email);
+    res.json({ balance });
+  })
+);
+
+app.post(
+  "/wallet",
+  asyncHandler(async (req, res) => {
+    const { email, amount, passphrase } = req.body;
+    if (!email || !amount || !passphrase)
+      return res.status(400).json({ error: "Missing required fields" });
+    if (passphrase !== "@Colts511")
+      return res.status(403).json({ error: "Unauthorized" });
+    const current = await getBalance(email);
+    const newBal = +(Number(current) + Number(amount)).toFixed(6);
+    await setBalance(email, newBal);
+    res.json({ balance: newBal });
+  })
+);
+
 app.post(
   "/auth/login",
   asyncHandler(async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password)
       return res.status(400).json({ error: "Missing credentials" });
-    // TODO: replace with real password check or OAuth
     const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: "15m" });
     res.json({ token });
   })
 );
 
-/*───────────────────  WALLET  ────────────────────*/
-app.get(
-  "/wallet",
-  auth,
-  asyncHandler(async (req, res) => {
-    const balance = await getBalance(req.user.email);
-    res.json({ balance });
-  })
-);
-
-/*───────────────────  USD → GZM  ────────────────────*/
 app.post(
   "/convert",
   auth,
@@ -124,7 +131,6 @@ app.post(
   })
 );
 
-/*───────────────────  CHECKOUT  ────────────────────*/
 app.post(
   "/checkout",
   auth,
@@ -161,7 +167,6 @@ app.post(
   })
 );
 
-/*───────────────────  SHOPIFY DISCOUNT  ────────────────────*/
 app.post(
   "/create-discount",
   auth,
@@ -172,7 +177,7 @@ app.post(
 
     const code = `GZM-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
     const now = new Date().toISOString();
-    const ends = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1h
+    const ends = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
     const ADMIN = `https://${SHOPIFY_STORE}/admin/api/2024-04`;
 
@@ -205,15 +210,13 @@ app.post(
   })
 );
 
-/*───────────────────  ERROR HANDLER  ────────────────────*/
 app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: "Server error" });
 });
 
-/*───────────────────  START SERVER  ────────────────────*/
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🪙 GizmoCoin wallet running on port ${PORT}`);
+  console.log(`\uD83E\uDE99 GizmoCoin wallet running on port ${PORT}`);
 });
 
 
