@@ -51,13 +51,38 @@ app.get("/wallet/balance", async (req, res) => {
   }
 });
 
-// === ADD OTHER ROUTES BELOW AS NEEDED ===
-// e.g., /convert, /create-discount, /checkout
+// === CREDIT WALLET ROUTE ===
 
-// Start server
+app.post("/create-discount", async (req, res) => {
+  const { gzm, email, pass } = req.body;
+  if (!gzm || !email || !pass) {
+    return res.status(400).json({ success: false, error: "Missing fields" });
+  }
+
+  if (pass !== process.env.ADMIN_CODE) {
+    return res.status(403).json({ success: false, error: "Unauthorized" });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO wallets (email, balance)
+       VALUES ($1, $2)
+       ON CONFLICT (email) DO UPDATE SET balance = wallets.balance + $2`,
+      [email, gzm]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Credit error:", err);
+    res.status(500).json({ success: false, error: "Internal error" });
+  }
+});
+
+// === START SERVER ===
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
+
 
 
 
