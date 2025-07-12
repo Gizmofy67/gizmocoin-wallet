@@ -1,4 +1,5 @@
-import express from "express";
+
+});import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -14,7 +15,7 @@ const { Pool } = pkg;
 const app = express();
 const port = process.env.PORT || 3000;
 
-// CORS FIX: allow only your live store with credentials
+// CORS: Allow only your store
 app.use(cors({
   origin: "https://getgizmofy.store",
   credentials: true
@@ -23,7 +24,6 @@ app.use(cors({
 app.use(express.json());
 app.use(helmet());
 
-// Optional rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100
@@ -33,12 +33,10 @@ app.use(limiter);
 // Database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: { rejectUnauthorized: false }
 });
 
-// WALLET BALANCE ROUTE
+// GET BALANCE ROUTE
 app.get("/wallet/balance", async (req, res) => {
   const { email } = req.query;
   if (!email) return res.status(400).json({ error: "Email required" });
@@ -53,12 +51,11 @@ app.get("/wallet/balance", async (req, res) => {
   }
 });
 
-// Add your other routes here (convert, create-discount, etc.)
-
-// Server start
+// Start server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
+
 
 
 
