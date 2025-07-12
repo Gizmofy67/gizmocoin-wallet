@@ -1,4 +1,3 @@
-
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -30,13 +29,14 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Database
+// PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// GET BALANCE ROUTE
+// === WALLET ROUTES ===
+
 app.get("/wallet/balance", async (req, res) => {
   const { email } = req.query;
   if (!email) return res.status(400).json({ error: "Email required" });
@@ -51,10 +51,14 @@ app.get("/wallet/balance", async (req, res) => {
   }
 });
 
+// === ADD OTHER ROUTES BELOW AS NEEDED ===
+// e.g., /convert, /create-discount, /checkout
+
 // Start server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
+
 
 
 
