@@ -52,7 +52,6 @@ app.get("/wallet/balance", async (req, res) => {
 });
 
 // === CREDIT WALLET ROUTE ===
-
 app.post("/create-discount", async (req, res) => {
   const { gzm, email, pass } = req.body;
   if (!gzm || !email || !pass) {
@@ -78,10 +77,10 @@ app.post("/create-discount", async (req, res) => {
 });
 
 // === START SERVER ===
-
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
+
 
 
 
