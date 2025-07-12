@@ -13,6 +13,7 @@ dotenv.config();
 const { Pool } = pkg;
 const app = express();
 const port = process.env.PORT || 10000;
+
 // CORS: Allow only your store
 app.use(cors({
   origin: "https://getgizmofy.store",
@@ -28,14 +29,13 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// PostgreSQL
+// PostgreSQL setup
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// === WALLET ROUTES ===
-
+// === WALLET BALANCE ROUTE ===
 app.get("/wallet/balance", async (req, res) => {
   const { email } = req.query;
   if (!email) return res.status(400).json({ error: "Email required" });
@@ -50,9 +50,10 @@ app.get("/wallet/balance", async (req, res) => {
   }
 });
 
-// === CREDIT WALLET ROUTE ===
+// === CREATE DISCOUNT / CREDIT WALLET ROUTE ===
 app.post("/create-discount", async (req, res) => {
   const { gzm, email, pass } = req.body;
+
   if (!gzm || !email || !pass) {
     return res.status(400).json({ success: false, error: "Missing fields" });
   }
@@ -62,27 +63,24 @@ app.post("/create-discount", async (req, res) => {
   }
 
   try {
-    await pool.query(
-      `INSERT INTO wallets (email, balance)
-       VALUES ($1, $2)
-       ON CONFLICT (email) DO UPDATE SET balance = wallets.balance + $2`,
-      [email, gzm]
-    );
+    await pool.query(`
+      INSERT INTO wallets (email, balance)
+      VALUES ($1, $2)
+      ON CONFLICT (email)
+      DO UPDATE SET balance = wallets.balance + $2
+    `, [email, gzm]);
+
     res.json({ success: true });
   } catch (err) {
     console.error("Credit error:", err);
-    res.status(500).json({ success: false, error: "Internal error" });
+    res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
 
 // === START SERVER ===
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`🪙 GizmoCoin wallet running on port ${port}`);
 });
-
-
-
-
 
 
 
