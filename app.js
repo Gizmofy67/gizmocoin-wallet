@@ -77,10 +77,36 @@ app.post("/create-discount", async (req, res) => {
   }
 });
 
+// === CONVERT USD TO GIZMOCOIN ROUTE ===
+app.post("/convert", async (req, res) => {
+  const { usd, email } = req.body;
+  if (!usd || !email) {
+    return res.status(400).json({ success: false, error: "Missing fields" });
+  }
+
+  const rate = 25; // 1 GZM = $25
+  const gzm = parseFloat((usd / rate).toFixed(4));
+
+  try {
+    await pool.query(`
+      INSERT INTO wallets (email, balance)
+      VALUES ($1, $2)
+      ON CONFLICT (email)
+      DO UPDATE SET balance = wallets.balance + $2
+    `, [email, gzm]);
+
+    res.json({ success: true, gzm });
+  } catch (err) {
+    console.error("Conversion error:", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
 // === START SERVER ===
 app.listen(port, () => {
   console.log(`🪙 GizmoCoin wallet running on port ${port}`);
 });
+
 
 
 
