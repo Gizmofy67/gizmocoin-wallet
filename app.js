@@ -12,8 +12,7 @@ dotenv.config();
 
 const { Pool } = pkg;
 const app = express();
-const port = process.env.PORT;
-
+const port = process.env.PORT || 10000;
 // CORS: Allow only your store
 app.use(cors({
   origin: "https://getgizmofy.store",
