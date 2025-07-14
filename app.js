@@ -1,3 +1,10 @@
+import express from "express";
+// ... other imports ...
+
+const app = express();  // <-- THIS must be before any app.post()
+
+// ... middlewares, pool, other routes ...
+
 // === CHECKOUT ROUTE ===
 app.post("/checkout", async (req, res) => {
   const { email, items } = req.body;
@@ -7,7 +14,7 @@ app.post("/checkout", async (req, res) => {
   }
 
   const totalUSD = items.reduce((sum, item) => sum + (item.price_usd * item.quantity), 0);
-  const totalGZM = parseFloat((totalUSD / 25).toFixed(4)); // 1 GZM = $25
+  const totalGZM = parseFloat((totalUSD / 25).toFixed(4));
 
   try {
     const result = await pool.query("SELECT balance FROM wallets WHERE email = $1", [email]);
@@ -25,3 +32,9 @@ app.post("/checkout", async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error during checkout." });
   }
 });
+
+// === START SERVER ===
+app.listen(port, () => {
+  console.log(`🪙 GizmoCoin wallet running on port ${port}`);
+});
+
